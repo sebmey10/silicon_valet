@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama-worker01
+  namespace: silicon-valet
+  labels:
+    app: ollama
+    node-role: worker01
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ollama
+      node-role: worker01
+  template:
+    metadata:
+      labels:
+        app: ollama
+        node-role: worker01
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: worker-01
+      containers:
+        - name: ollama
+          image: ollama/ollama:latest
+          ports:
+            - containerPort: 11434
+              name: ollama
+          env:
+            - name: OLLAMA_NUM_PARALLEL
+              value: "1"
+            - name: OLLAMA_MAX_LOADED_MODELS
+              value: "2"
+          volumeMounts:
+            - name: models
+              mountPath: /root/.ollama
+          resources:
+            requests:
+              memory: "7Gi"
+              cpu: "2"
+            limits:
+              memory: "10Gi"
+              cpu: "4"
+          readinessProbe:
+            httpGet:
+              path: /api/tags
+              port: 11434
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/tags
+              port: 11434
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 10
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: valet-models-worker01

@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "silicon-valet"
+version = "0.1.0"
+description = "Self-hosted, air-gapped infrastructure intelligence for k3s clusters"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+authors = [
+    {name = "Silicon Valet Contributors"},
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Systems Administration",
+]
+dependencies = [
+    "qwen-agent[mcp]>=0.0.14",
+    "chromadb>=0.5.0",
+    "rich>=13.0",
+    "websockets>=12.0",
+    "httpx>=0.27.0",
+    "json5>=0.9.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.4.0",
+]
+
+[project.scripts]
+valet-server = "silicon_valet.__main__:main"
+valet = "silicon_valet.cli.client:main"
+
+[tool.setuptools.packages.find]
+include = ["silicon_valet*"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

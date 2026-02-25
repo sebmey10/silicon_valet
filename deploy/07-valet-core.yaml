@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: valet-core
+  namespace: silicon-valet
+  labels:
+    app: valet-core
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: valet-core
+  template:
+    metadata:
+      labels:
+        app: valet-core
+    spec:
+      serviceAccountName: valet-core
+      containers:
+        - name: valet
+          image: silicon-valet:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 7443
+              name: websocket
+          envFrom:
+            - configMapRef:
+                name: valet-config
+          volumeMounts:
+            - name: data
+              mountPath: /data/valet
+            - name: backups
+              mountPath: /data/backups
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "2"
+          readinessProbe:
+            tcpSocket:
+              port: 7443
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            tcpSocket:
+              port: 7443
+            initialDelaySeconds: 30
+            periodSeconds: 30
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: valet-data
+        - name: backups
+          persistentVolumeClaim:
+            claimName: valet-backups
+---
+# ServiceAccount with permissions to query cluster state
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: valet-core
+  namespace: silicon-valet
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: valet-reader
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "nodes", "configmaps", "events", "namespaces", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "daemonsets", "statefulsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["nodes", "pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: valet-reader-binding
+subjects:
+  - kind: ServiceAccount
+    name: valet-core
+    namespace: silicon-valet
+roleRef:
+  kind: ClusterRole
+  name: valet-reader
+  apiGroup: rbac.authorization.k8s.io

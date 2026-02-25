@@ -1,0 +1,55 @@
+# Ollama models PVC — worker-01 (qwen3:8b + nomic-embed-text)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: valet-models-worker01
+  namespace: silicon-valet
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 20Gi
+---
+# Ollama models PVC — worker-02 (qwen2.5-coder:7b)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: valet-models-worker02
+  namespace: silicon-valet
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 15Gi
+---
+# Valet data PVC — SQLite DBs, ChromaDB, briefs, logs
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: valet-data
+  namespace: silicon-valet
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 10Gi
+---
+# Valet backups PVC — risk engine file backups
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: valet-backups
+  namespace: silicon-valet
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 5Gi

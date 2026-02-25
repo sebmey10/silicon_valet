@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chromadb
+  namespace: silicon-valet
+  labels:
+    app: chromadb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chromadb
+  template:
+    metadata:
+      labels:
+        app: chromadb
+    spec:
+      containers:
+        - name: chromadb
+          image: chromadb/chroma:latest
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+            - name: IS_PERSISTENT
+              value: "TRUE"
+            - name: PERSIST_DIRECTORY
+              value: "/chroma/chroma"
+            - name: ANONYMIZED_TELEMETRY
+              value: "FALSE"
+          volumeMounts:
+            - name: data
+              mountPath: /chroma/chroma
+              subPath: chromadb
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1"
+          readinessProbe:
+            httpGet:
+              path: /api/v2/heartbeat
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /api/v2/heartbeat
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: valet-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chromadb
+  namespace: silicon-valet
+spec:
+  selector:
+    app: chromadb
+  ports:
+    - port: 8000
+      targetPort: 8000
+      name: http
+  type: ClusterIP
