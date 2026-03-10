@@ -263,9 +263,21 @@ if [ "$DEPLOY_MODE" = "standalone" ]; then
     log "  Pulling AI models (this may take a while on first run)..."
     echo ""
 
-    MODELS=("qwen3:8b" "qwen2.5-coder:7b" "nomic-embed-text")
-    for model in "${MODELS[@]}"; do
-        echo -e "  ${CYAN}Pulling ${model}...${NC}"
+    # Core models (required)
+    CORE_MODELS=("qwen3:8b" "qwen2.5-coder:7b" "nomic-embed-text")
+    # Extra models (recommended for better performance)
+    EXTRA_MODELS=("phi4-mini" "mxbai-embed-large" "snowflake-arctic-embed2")
+
+    for model in "${CORE_MODELS[@]}"; do
+        echo -e "  ${CYAN}Pulling ${model} (core)...${NC}"
+        ollama pull "$model"
+        ok "  $model ready"
+    done
+
+    echo ""
+    log "  Pulling recommended extra models..."
+    for model in "${EXTRA_MODELS[@]}"; do
+        echo -e "  ${CYAN}Pulling ${model} (extra)...${NC}"
         ollama pull "$model"
         ok "  $model ready"
     done
@@ -338,7 +350,7 @@ if [ "$DEPLOY_MODE" = "docker" ]; then
     log "  Pulling AI models into Ollama container..."
     OLLAMA_CONTAINER=$($COMPOSE_CMD ps -q ollama 2>/dev/null | head -1)
     if [ -n "$OLLAMA_CONTAINER" ]; then
-        for model in "qwen3:8b" "qwen2.5-coder:7b" "nomic-embed-text"; do
+        for model in "qwen3:8b" "qwen2.5-coder:7b" "nomic-embed-text" "phi4-mini" "mxbai-embed-large" "snowflake-arctic-embed2"; do
             echo -e "  ${CYAN}Pulling ${model}...${NC}"
             docker exec "$OLLAMA_CONTAINER" ollama pull "$model"
             ok "  $model ready"

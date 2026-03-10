@@ -22,6 +22,10 @@ services:
     environment:
       SV_OLLAMA_WORKER01: "http://ollama:11434"
       SV_OLLAMA_WORKER02: "http://ollama:11434"
+      SV_ORCHESTRATOR_MODEL: "qwen3:8b"
+      SV_CODER_MODEL: "qwen2.5-coder:7b"
+      SV_EMBED_MODEL: "nomic-embed-text"
+      SV_FAST_MODEL: "phi4-mini"
       SV_DATA_DIR: "/data/valet"
       SV_BACKUP_DIR: "/data/backups"
       SV_WS_HOST: "0.0.0.0"

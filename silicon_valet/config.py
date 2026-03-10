@@ -41,6 +41,8 @@ class ValetConfig:
     orchestrator_model: str = os.getenv("SV_ORCHESTRATOR_MODEL", "qwen3:8b")
     coder_model: str = os.getenv("SV_CODER_MODEL", "qwen2.5-coder:7b")
     embed_model: str = os.getenv("SV_EMBED_MODEL", "nomic-embed-text")
+    # Fast lightweight model for quick classification/routing tasks
+    fast_model: str = os.getenv("SV_FAST_MODEL", "phi4-mini")
     num_ctx: int = int(os.getenv("SV_NUM_CTX", "4096"))
     scan_interval: int = int(os.getenv("SV_SCAN_INTERVAL", "600"))
     ws_host: str = os.getenv("SV_WS_HOST", "0.0.0.0")
