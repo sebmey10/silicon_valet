@@ -1,0 +1,40 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: sv-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+
+  silicon-valet:
+    build: .
+    container_name: sv-core
+    ports:
+      - "7443:7443"
+    environment:
+      SV_OLLAMA_WORKER01: "http://ollama:11434"
+      SV_OLLAMA_WORKER02: "http://ollama:11434"
+      SV_DATA_DIR: "/data/valet"
+      SV_BACKUP_DIR: "/data/backups"
+      SV_WS_HOST: "0.0.0.0"
+      SV_WS_PORT: "7443"
+    volumes:
+      - valet_data:/data/valet
+      - valet_backups:/data/backups
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
+  valet_data:
+  valet_backups:

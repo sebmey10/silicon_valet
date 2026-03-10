@@ -23,6 +23,18 @@ async def startup() -> None:
     )
     logger.info("Silicon Valet v%s starting...", __import__("silicon_valet").__version__)
 
+    # Phase 0: Environment detection
+    from silicon_valet.environment import EnvironmentDetector
+    detector = EnvironmentDetector()
+    capabilities = await detector.detect()
+    config.resolve_from_environment(capabilities)
+    logger.info(
+        "Environment: %s | Ollama: %s (orchestrator), %s (coder)",
+        capabilities.env_type.value,
+        config.ollama_orchestrator,
+        config.ollama_coder,
+    )
+
     # Phase 1: Infrastructure DNA
     from silicon_valet.dna.store import DNAStore
     dna = DNAStore(config.dna_db_path)
@@ -64,10 +76,13 @@ async def startup() -> None:
     # Phase 7: Orchestrator
     from silicon_valet.orchestrator.planner import PlannerAgent
     from silicon_valet.orchestrator.coder import CoderAgent
-    from silicon_valet.orchestrator.router import TaskRouter
-    planner = PlannerAgent(config, risk_engine, memory)
+    from silicon_valet.orchestrator.handoff import HandoffManager
+
+    # Collect tool names from active packs + built-in tools
+    tool_names = [t.__name__ for p in active_packs for t in p.get_tools()]
+    planner = PlannerAgent(config, tool_names, memory)
     coder = CoderAgent(config)
-    router = TaskRouter()
+    handoff = HandoffManager(config.data_dir)
 
     # Phase 8: WebSocket server
     from silicon_valet.server.ws_server import ValetServer
@@ -75,11 +90,11 @@ async def startup() -> None:
         config=config,
         dna=dna,
         memory=memory,
+        episodic=episodic,
         risk_engine=risk_engine,
         planner=planner,
         coder=coder,
-        router=router,
-        active_packs=active_packs,
+        handoff=handoff,
     )
     logger.info("Silicon Valet ready on ws://%s:%d", config.ws_host, config.ws_port)
     await server.start()

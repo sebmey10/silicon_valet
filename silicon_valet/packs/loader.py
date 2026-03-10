@@ -14,8 +14,13 @@ logger = logging.getLogger(__name__)
 
 # Known pack modules (discovered at import time)
 PACK_MODULES = [
+    "silicon_valet.packs.linux",
     "silicon_valet.packs.networking",
     "silicon_valet.packs.kubernetes",
+    "silicon_valet.packs.docker",
+    "silicon_valet.packs.webserver",
+    "silicon_valet.packs.database",
+    "silicon_valet.packs.firewall",
     "silicon_valet.packs.zabbix",
     "silicon_valet.packs.rabbitmq",
 ]

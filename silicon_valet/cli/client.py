@@ -108,15 +108,80 @@ class ValetClient:
             await self._ws.send(msg.to_json())
 
 
+def _run_local_server_and_connect(port: int = 7443) -> None:
+    """Start the Silicon Valet server locally and connect to it."""
+    import threading
+    from silicon_valet.__main__ import startup
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+        datefmt="%H:%M:%S",
+    )
+
+    print("Starting Silicon Valet...")
+    print("  (detecting environment and loading models...)\n")
+
+    # Run server in background thread
+    server_ready = threading.Event()
+
+    def _server_thread():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(startup())
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            pass
+        finally:
+            loop.close()
+
+    thread = threading.Thread(target=_server_thread, daemon=True)
+    thread.start()
+
+    # Wait for server to start
+    import time
+    for _ in range(60):
+        try:
+            import socket
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(1)
+            s.connect(("localhost", port))
+            s.close()
+            break
+        except (ConnectionRefusedError, OSError):
+            time.sleep(1)
+    else:
+        print("Server did not start within 60 seconds. Check logs for errors.")
+        return
+
+    # Connect locally
+    url = f"ws://localhost:{port}"
+    client = ValetClient(url)
+    print(f"Connected to local server.\n")
+
+    try:
+        asyncio.run(client.connect())
+    except KeyboardInterrupt:
+        print("\nShutting down...")
+
+
 def main():
-    """CLI entry point: valet connect <server>"""
+    """CLI entry point: valet [run|connect|setup]"""
     import argparse
 
-    parser = argparse.ArgumentParser(description="Silicon Valet CLI")
+    parser = argparse.ArgumentParser(
+        description="Silicon Valet — Infrastructure Intelligence",
+        epilog="Run 'valet run' to start locally, or 'valet connect <server>' for remote.",
+    )
     subparsers = parser.add_subparsers(dest="command")
 
-    connect_parser = subparsers.add_parser("connect", help="Connect to a Silicon Valet server")
-    connect_parser.add_argument("server", help="Server address (e.g., 192.168.1.10)")
+    # run — start server + connect locally (default)
+    run_parser = subparsers.add_parser("run", help="Start Silicon Valet and chat locally")
+    run_parser.add_argument("--port", type=int, default=7443, help="Server port (default: 7443)")
+
+    # connect — connect to remote server
+    connect_parser = subparsers.add_parser("connect", help="Connect to a remote Silicon Valet server")
+    connect_parser.add_argument("server", help="Server address (e.g., 192.168.1.10 or localhost)")
     connect_parser.add_argument("--port", type=int, default=7443, help="Server port (default: 7443)")
 
     args = parser.parse_args()
@@ -132,8 +197,13 @@ def main():
             asyncio.run(client.connect())
         except KeyboardInterrupt:
             print("\nDisconnected.")
+
+    elif args.command == "run":
+        _run_local_server_and_connect(args.port)
+
     else:
-        parser.print_help()
+        # Default: run locally
+        _run_local_server_and_connect()
 
 
 if __name__ == "__main__":

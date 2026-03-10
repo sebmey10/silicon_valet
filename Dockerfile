@@ -27,8 +27,10 @@ RUN pip install --no-cache-dir --no-deps -e .
 RUN useradd --create-home --shell /bin/bash valet
 USER valet
 
-# Data directory (mount PVC here)
+# Data directory (mount PVC here in k8s, or Docker volume)
 ENV SV_DATA_DIR=/data/valet
+ENV SV_OLLAMA_WORKER01=auto
+ENV SV_OLLAMA_WORKER02=auto
 ENV SV_WS_HOST=0.0.0.0
 ENV SV_WS_PORT=7443
 

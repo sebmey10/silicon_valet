@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 import logging
 import re
+import socket
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -31,6 +31,14 @@ SERVICE_CONFIG_PATHS: dict[str, list[str]] = {
     "docker": ["/etc/docker/"],
     "containerd": ["/etc/containerd/"],
     "k3s": ["/etc/rancher/k3s/"],
+    "ollama": ["/etc/systemd/system/ollama.service", "/etc/ollama/"],
+    "prometheus": ["/etc/prometheus/"],
+    "grafana": ["/etc/grafana/"],
+    "haproxy": ["/etc/haproxy/"],
+    "fail2ban": ["/etc/fail2ban/"],
+    "ufw": ["/etc/ufw/"],
+    "certbot": ["/etc/letsencrypt/"],
+    "mongod": ["/etc/mongod.conf"],
 }
 
 
@@ -63,7 +71,13 @@ async def _run_cmd(cmd: list[str], timeout: int = 15) -> str | None:
 
 
 class BackgroundScanner:
-    """Periodically scans the environment and updates the DNA store."""
+    """Periodically scans the environment and updates the DNA store.
+
+    Adapts scanning strategy based on detected environment capabilities:
+    - Kubernetes: scans k8s resources + node-level services
+    - Bare metal / VM: scans systemd, network, processes, hardware
+    - Docker: scans containers + host services
+    """
 
     def __init__(self, store: DNAStore, config: ValetConfig) -> None:
         self.store = store
@@ -86,20 +100,34 @@ class BackgroundScanner:
     async def scan_once(self) -> ScanResult:
         """Run all discovery methods and reconcile with the store."""
         result = ScanResult()
+        caps = self.config.capabilities
 
-        # Run discovery methods concurrently
-        nodes_task = asyncio.create_task(self._scan_nodes())
-        k8s_task = asyncio.create_task(self._scan_k8s_services())
-        systemd_task = asyncio.create_task(self._scan_systemd_units())
-        ports_task = asyncio.create_task(self._scan_ports())
-        network_task = asyncio.create_task(self._scan_network_interfaces())
+        # Build task list based on environment capabilities
+        tasks = {
+            "nodes": asyncio.create_task(self._scan_nodes()),
+            "systemd": asyncio.create_task(self._scan_systemd_units()),
+            "ports": asyncio.create_task(self._scan_ports()),
+            "network": asyncio.create_task(self._scan_network_interfaces()),
+        }
 
-        result.nodes = await nodes_task
-        k8s_services = await k8s_task
-        systemd_services = await systemd_task
-        result.services = k8s_services + systemd_services
-        result.ports = await ports_task
-        result.network_interfaces = await network_task
+        # Only scan k8s if kubectl is available
+        if caps and caps.has_kubectl:
+            tasks["k8s"] = asyncio.create_task(self._scan_k8s_services())
+
+        # Only scan Docker if docker is available
+        if caps and caps.has_docker:
+            tasks["docker"] = asyncio.create_task(self._scan_docker_containers())
+
+        # Await all tasks
+        result.nodes = await tasks["nodes"]
+        systemd_services = await tasks["systemd"]
+        result.ports = await tasks["ports"]
+        result.network_interfaces = await tasks["network"]
+
+        k8s_services = await tasks["k8s"] if "k8s" in tasks else []
+        docker_services = await tasks["docker"] if "docker" in tasks else []
+
+        result.services = k8s_services + systemd_services + docker_services
 
         # Persist to store
         node_map: dict[str, int] = {}
@@ -148,6 +176,19 @@ class BackgroundScanner:
         return result
 
     async def _scan_nodes(self) -> list[Node]:
+        """Discover nodes. Tries kubectl first, falls back to local node info."""
+        caps = self.config.capabilities
+
+        # Try Kubernetes node discovery if kubectl is available
+        if caps and caps.has_kubectl:
+            k8s_nodes = await self._scan_k8s_nodes()
+            if k8s_nodes:
+                return k8s_nodes
+
+        # Fallback: build a node entry from local system information
+        return await self._scan_local_node()
+
+    async def _scan_k8s_nodes(self) -> list[Node]:
         """Discover cluster nodes via kubectl."""
         output = await _run_cmd(["kubectl", "get", "nodes", "-o", "json"])
         if not output:
@@ -184,6 +225,71 @@ class BackgroundScanner:
         except (json.JSONDecodeError, KeyError, ValueError) as e:
             logger.warning("Failed to parse kubectl nodes output: %s", e)
         return nodes
+
+    async def _scan_local_node(self) -> list[Node]:
+        """Build a node entry from local system information (bare metal / VM / Docker)."""
+        hostname = socket.gethostname()
+
+        # Get RAM
+        ram_mb = None
+        try:
+            meminfo = Path("/proc/meminfo")
+            if meminfo.exists():
+                text = meminfo.read_text()
+                for line in text.splitlines():
+                    if line.startswith("MemTotal:"):
+                        ram_mb = int(line.split()[1]) // 1024
+                        break
+        except Exception:
+            pass
+        if ram_mb is None:
+            output = await _run_cmd(["free", "-m"])
+            if output:
+                for line in output.splitlines():
+                    if line.startswith("Mem:"):
+                        parts = line.split()
+                        if len(parts) >= 2:
+                            ram_mb = int(parts[1])
+                        break
+
+        # Get CPU cores
+        cpu_cores = None
+        output = await _run_cmd(["nproc"])
+        if output:
+            try:
+                cpu_cores = int(output)
+            except ValueError:
+                pass
+
+        # Get OS version
+        os_version = None
+        try:
+            os_release = Path("/etc/os-release")
+            if os_release.exists():
+                text = os_release.read_text()
+                for line in text.splitlines():
+                    if line.startswith("PRETTY_NAME="):
+                        os_version = line.split("=", 1)[1].strip().strip('"')
+                        break
+        except Exception:
+            pass
+
+        # Get primary IP address
+        ip_addr = None
+        output = await _run_cmd(["hostname", "-I"])
+        if output:
+            ips = output.split()
+            if ips:
+                ip_addr = ips[0]
+
+        return [Node(
+            hostname=hostname,
+            ip=ip_addr,
+            role="standalone",
+            os_version=os_version,
+            ram_total_mb=ram_mb,
+            cpu_cores=cpu_cores,
+        )]
 
     async def _scan_k8s_services(self) -> list[Service]:
         """Discover k8s pods and deployments."""
@@ -234,6 +340,35 @@ class BackgroundScanner:
                     ))
             except (json.JSONDecodeError, KeyError) as e:
                 logger.warning("Failed to parse kubectl deployments output: %s", e)
+
+        return services
+
+    async def _scan_docker_containers(self) -> list[Service]:
+        """Discover running Docker containers."""
+        output = await _run_cmd(["docker", "ps", "--format", "{{json .}}"])
+        if not output:
+            return []
+
+        services = []
+        for line in output.strip().split("\n"):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                data = json.loads(line)
+                name = data.get("Names", data.get("ID", "unknown"))
+                image = data.get("Image", "")
+                status_str = data.get("Status", "")
+                svc_status = "running" if "Up" in status_str else "stopped"
+
+                services.append(Service(
+                    name=name,
+                    type="container",
+                    status=svc_status,
+                    image=image,
+                ))
+            except (json.JSONDecodeError, KeyError) as e:
+                logger.debug("Failed to parse docker ps line: %s", e)
 
         return services
 
@@ -376,6 +511,8 @@ class BackgroundScanner:
             ("zabbix-server", "postgresql", "network", "database backend"),
             ("zabbix-server", "mysql", "network", "database backend"),
             ("rabbitmq-server", "erlang", "config", "runtime dependency"),
+            ("nginx", "php-fpm", "network", "PHP processing"),
+            ("grafana", "prometheus", "network", "metrics source"),
         ]
 
         for src_pattern, tgt_pattern, dep_type, detail in known_deps:

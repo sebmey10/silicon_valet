@@ -5,7 +5,7 @@ build-backend = "setuptools.backends._legacy:_Backend"
 [project]
 name = "silicon-valet"
 version = "0.1.0"
-description = "Self-hosted, air-gapped infrastructure intelligence for k3s clusters"
+description = "Self-hosted infrastructure intelligence for any Linux server"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.11"
@@ -40,6 +40,7 @@ dev = [
 [project.scripts]
 valet-server = "silicon_valet.__main__:main"
 valet = "silicon_valet.cli.client:main"
+silicon-valet = "silicon_valet.cli.client:main"
 
 [tool.setuptools.packages.find]
 include = ["silicon_valet*"]

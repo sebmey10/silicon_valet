@@ -12,7 +12,8 @@ from silicon_valet.orchestrator.router import TaskRouter
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """\
-You are Silicon Valet, an infrastructure intelligence assistant running on a k3s cluster.
+You are Silicon Valet, an infrastructure intelligence assistant.
+You are managing a {environment_description}.
 You help users understand and manage their infrastructure through conversation.
 
 CORE PRINCIPLES:
@@ -87,7 +88,16 @@ class PlannerAgent:
         """
         # Build context
         context = await self.memory.build_context(user_message)
-        system_prompt = SYSTEM_PROMPT.format(context=context)
+
+        # Build environment description from detected capabilities
+        env_desc = "server"
+        if self.config.capabilities:
+            env_desc = self.config.capabilities.environment_description
+
+        system_prompt = SYSTEM_PROMPT.format(
+            context=context,
+            environment_description=env_desc,
+        )
 
         # Thinking mode for complex diagnostics
         use_thinking = self.router.needs_thinking(user_message)
