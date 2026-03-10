@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
-import sys
 
 import websockets
 
@@ -123,8 +121,6 @@ def _run_local_server_and_connect(port: int = 7443) -> None:
     print("  (detecting environment and loading models...)\n")
 
     # Run server in background thread
-    server_ready = threading.Event()
-
     def _server_thread():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)

@@ -76,7 +76,9 @@ class RiskEngine:
                 approved=False,
             )
 
-        approved = await approval_callback(action)
+        approved = await approval_callback(
+            action.command, action.tier.value, action.explanation
+        )
         if not approved:
             logger.info("User denied: %s", command)
             return ExecutionResult(

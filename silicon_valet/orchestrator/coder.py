@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 from typing import AsyncIterator
+
+import httpx
 
 from silicon_valet.config import ValetConfig
 
@@ -45,7 +46,6 @@ class CoderAgent:
 
     async def _stream(self, user_message: str) -> AsyncIterator[str]:
         """Stream tokens from the coder model."""
-        import httpx
 
         messages = [
             {"role": "system", "content": CODER_SYSTEM_PROMPT},

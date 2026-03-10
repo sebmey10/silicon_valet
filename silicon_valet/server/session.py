@@ -126,7 +126,7 @@ class SessionManager:
             prompt = Message.risk_prompt(command, tier, explanation)
             await self._ws.send(prompt.to_json())
             # Wait for response
-            self._pending_approval = asyncio.get_event_loop().create_future()
+            self._pending_approval = asyncio.get_running_loop().create_future()
             try:
                 approved = await asyncio.wait_for(self._pending_approval, timeout=300)
                 return approved

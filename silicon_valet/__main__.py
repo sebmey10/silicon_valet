@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import signal
-import sys
 
 from silicon_valet.config import load_config
 

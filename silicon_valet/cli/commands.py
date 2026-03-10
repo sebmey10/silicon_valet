@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import TYPE_CHECKING
 
@@ -96,9 +95,8 @@ async def _cmd_history(session: "SessionManager", args: str) -> str:
 
 async def _cmd_runbooks(session: "SessionManager", args: str) -> str:
     try:
-        from silicon_valet.memory.procedural import RunbookLibrary
         # Access runbook library through memory context
-        runbooks = session.memory.runbook.get_all_sync()
+        runbooks = session.memory.runbook.get_all()
         if not runbooks:
             return "No runbooks available yet."
         lines = ["Available runbooks:", ""]

@@ -4,8 +4,11 @@
 FROM python:3.11-slim AS builder
 
 WORKDIR /build
-COPY requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+COPY pyproject.toml .
+COPY silicon_valet/ silicon_valet/
+
+# Install the package and all dependencies into /install prefix
+RUN pip install --no-cache-dir --prefix=/install .
 
 FROM python:3.11-slim
 
@@ -19,9 +22,6 @@ COPY --from=builder /install /usr/local
 WORKDIR /app
 COPY silicon_valet/ silicon_valet/
 COPY pyproject.toml .
-
-# Install the package itself (no deps, they're already installed)
-RUN pip install --no-cache-dir --no-deps -e .
 
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash valet

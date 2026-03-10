@@ -338,8 +338,6 @@ class DNAStore:
     # ── Changes Log ──────────────────────────────────────────────────
 
     def get_changes_since(self, hours: int = 24) -> list[ChangeEntry]:
-        cutoff = datetime.now(timezone.utc).isoformat()
-        # Compute cutoff by subtracting hours (simple string comparison works for ISO 8601)
         from datetime import timedelta
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
         rows = self.conn.execute(

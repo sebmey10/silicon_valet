@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import logging
+import re
 from typing import AsyncIterator
+
+import httpx
 
 from silicon_valet.config import ValetConfig
 from silicon_valet.memory.context import MemoryContext
@@ -137,8 +141,6 @@ class PlannerAgent:
         self, user_message: str, system_prompt: str, history: list[dict]
     ) -> AsyncIterator[str]:
         """Fallback: stream directly from Ollama API."""
-        import httpx
-
         messages = [{"role": "system", "content": system_prompt}]
         messages.extend(history)
         messages.append({"role": "user", "content": user_message})
@@ -161,7 +163,6 @@ class PlannerAgent:
                     async for line in resp.aiter_lines():
                         if not line.strip():
                             continue
-                        import json
                         data = json.loads(line)
                         if data.get("done"):
                             break
@@ -171,7 +172,6 @@ class PlannerAgent:
                         if "<think>" in buffer and "</think>" not in buffer:
                             continue
                         if "</think>" in buffer:
-                            import re
                             buffer = re.sub(r"<think>.*?</think>", "", buffer, flags=re.DOTALL)
                         if buffer:
                             yield buffer
@@ -183,5 +183,4 @@ class PlannerAgent:
     @staticmethod
     def _strip_thinking(content: str) -> str:
         """Remove <think>...</think> blocks from output."""
-        import re
         return re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()

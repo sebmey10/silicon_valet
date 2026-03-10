@@ -219,9 +219,14 @@ class EnvironmentDetector:
             if val and val != "auto":
                 endpoints_to_probe.add(val.rstrip("/"))
 
-        results = {}
-        tasks = {ep: _probe_ollama(ep) for ep in endpoints_to_probe}
-        for ep, coro in tasks.items():
-            results[ep] = await coro
+        endpoints = sorted(endpoints_to_probe)
+        probe_results = await asyncio.gather(
+            *(_probe_ollama(ep) for ep in endpoints),
+            return_exceptions=True,
+        )
+
+        results: dict[str, list[str] | None] = {}
+        for ep, result in zip(endpoints, probe_results):
+            results[ep] = result if not isinstance(result, Exception) else None
 
         return results
