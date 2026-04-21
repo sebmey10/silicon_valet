@@ -23,6 +23,9 @@ PACK_MODULES = [
     "silicon_valet.packs.firewall",
     "silicon_valet.packs.zabbix",
     "silicon_valet.packs.rabbitmq",
+    "silicon_valet.packs.cisco",
+    "silicon_valet.packs.nokia",
+    "silicon_valet.packs.adtran",
 ]
 
 

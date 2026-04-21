@@ -63,6 +63,30 @@ class ValetServer:
 
     async def handler(self, websocket) -> None:
         """Handle a single client connection."""
+        # Optional bearer-token auth. The token is also accepted as a
+        # ?token=... query param so browsers without header support still work.
+        expected = getattr(self.config, "auth_token", "")
+        if expected:
+            auth_hdr = websocket.request_headers.get("Authorization", "") \
+                if hasattr(websocket, "request_headers") else ""
+            token = ""
+            if auth_hdr.lower().startswith("bearer "):
+                token = auth_hdr.split(" ", 1)[1].strip()
+            if not token:
+                try:
+                    from urllib.parse import urlparse, parse_qs
+                    q = parse_qs(urlparse(getattr(websocket, "path", "")).query)
+                    token = (q.get("token") or [""])[0]
+                except Exception:
+                    token = ""
+            if token != expected:
+                logger.warning("Rejected WebSocket connection: bad/missing token")
+                try:
+                    await websocket.close(code=4401, reason="unauthorized")
+                except Exception:
+                    pass
+                return
+
         session = SessionManager(
             config=self.config,
             dna=self.dna,

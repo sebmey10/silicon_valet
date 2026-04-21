@@ -83,7 +83,12 @@ async def startup() -> None:
     coder = CoderAgent(config)
     handoff = HandoffManager(config.data_dir)
 
-    # Phase 8: WebSocket server
+    # Ensure auth token exists (generates one on first run, persists to disk)
+    token = config.ensure_auth_token()
+    logger.info("Auth token loaded from %s/auth.token (share with clients)",
+                config.data_dir)
+
+    # Phase 8: WebSocket server + (optional) HTTP API
     from silicon_valet.server.ws_server import ValetServer
     server = ValetServer(
         config=config,
@@ -96,7 +101,28 @@ async def startup() -> None:
         handoff=handoff,
     )
     logger.info("Silicon Valet ready on ws://%s:%d", config.ws_host, config.ws_port)
-    await server.start()
+
+    tasks = [asyncio.create_task(server.start())]
+
+    if config.http_enabled:
+        try:
+            from silicon_valet.api.openai_compat import OpenAICompatServer
+            http_server = OpenAICompatServer(config, planner, memory, risk_engine)
+            tasks.append(asyncio.create_task(http_server.serve()))
+            logger.info(
+                "OpenAI-compatible HTTP API will listen on http://%s:%d/v1",
+                config.http_host,
+                config.http_port,
+            )
+        except Exception as e:
+            logger.warning("HTTP API disabled (%s). Install fastapi+uvicorn to enable.", e)
+
+    try:
+        await asyncio.gather(*tasks)
+    except asyncio.CancelledError:
+        for t in tasks:
+            t.cancel()
+        raise
 
 
 def main() -> None:

@@ -1,0 +1,41 @@
+# Sample device inventory for Silicon Valet's network-device packs.
+# Copy to /etc/silicon_valet/devices.yaml (or ~/.silicon_valet/devices.yaml)
+# and edit for your environment.
+#
+# platform must be a netmiko device_type. Common values:
+#   cisco_ios, cisco_xe, cisco_nxos, cisco_xr, cisco_asa
+#   nokia_sros, nokia_srl
+#   adtran_os
+#   juniper_junos, arista_eos, linux
+#
+# Passwords should live in env vars, not in this file. Set
+# password_env: MY_SECRET_VAR and export it before starting valet-server.
+#
+# For jump/bastion support, add:
+#   ssh_config_file: /root/.ssh/config
+#   use_keys: true
+#   key_file: /root/.ssh/id_ed25519
+devices:
+  core-rtr-01:
+    host: 10.0.0.1
+    platform: cisco_xe
+    username: netops
+    password_env: SV_DEVICE_PW
+
+  agg-sr-02:
+    host: 10.0.1.2
+    platform: nokia_sros
+    username: admin
+    password_env: SV_DEVICE_PW
+
+  cpe-site-7:
+    host: 10.10.7.1
+    platform: adtran_os
+    username: admin
+    password_env: SV_DEVICE_PW
+
+  dc-leaf-3:
+    host: 10.20.3.3
+    platform: arista_eos
+    username: admin
+    password_env: SV_DEVICE_PW

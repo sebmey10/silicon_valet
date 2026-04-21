@@ -1,6 +1,6 @@
-# Silicon Valet — pinned dependencies for air-gapped install
+# Silicon Valet — pinned dependencies for air-gapped install.
 # Download with: pip download -r requirements.txt -d wheels/
-# Install with: pip install --no-index --find-links=wheels/ -r requirements.txt
+# Install with:  pip install --no-index --find-links=wheels/ -r requirements.txt
 qwen-agent[mcp]>=0.0.14
 chromadb>=0.5.0
 rich>=13.0
@@ -8,3 +8,11 @@ websockets>=12.0
 httpx>=0.27.0
 json5>=0.9.0
 pyyaml>=6.0
+
+# OpenAI-compatible HTTP API (for OpenWebUI)
+fastapi>=0.110
+uvicorn>=0.29
+
+# Network device management (Cisco, Nokia, Adtran, Juniper, Arista, ...)
+netmiko>=4.3
+paramiko>=3.4
